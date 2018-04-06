@@ -11,6 +11,7 @@ type Configuration struct {
 	RedisURL   string
 	Debug      bool
 	ListenAddr string
+	HttpProxy  string
 }
 
 func NewConfig(fileName string) (*Configuration, error) {
@@ -32,5 +33,6 @@ func NewConfig(fileName string) (*Configuration, error) {
 	if conf.ListenAddr == "" {
 		return nil, errors.New("listen.addr is missing")
 	}
+	conf.HttpProxy = configer.String("http.proxy")
 	return conf, nil
 }

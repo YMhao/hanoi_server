@@ -44,6 +44,7 @@ func main() {
 	servCfg := serv.NewAPIServConf(VERSION, BUILD_TIME, SERVER_NAME, SERVER_DESCRIPTION)
 	servCfg.DebugOn = cfg.Debug
 	servCfg.ListenAddr = cfg.ListenAddr
+	servCfg.HTTPProxy = cfg.HttpProxy
 
 	setsOfAPIs := serv.APISets{
 		"user": []serv.API{

@@ -13,11 +13,12 @@ import (
 type SignInOrSignUpRequest struct {
 	UserName string `desc:"用户名"`
 	Passwd   string `desc:"密码，md5(passwd), 32位md5"`
+	IMIE     string `desc:"IMIE识别码,游客登录只填IMIE识别码,不需要输入用户名密码"`
 }
 
 type SignInOrSignUpResponse struct {
 	HasLock     bool   `desc:"帐号是否被锁定"`
-	LockTime    int64  `desc:"锁定到什么时候, 时间戳，单位是毫秒"`
+	LockTime    int64  `desc:"锁定到什么时候, 时间戳，单位是秒"`
 	TryCount    int    `desc:"剩余重试次数"`
 	PasswdError bool   `desc:"密码是否错误"`
 	SessionID   string `desc:"会话id"`
