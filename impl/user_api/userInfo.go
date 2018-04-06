@@ -5,11 +5,11 @@ import (
 )
 
 type UserInfo struct {
-	NickName   string `desc:"昵称"`
-	Moblephone string `desc:"手机号码"`
-	Email      string `desc:"邮箱"`
-	Gender     string `desc:"性别" enum:"MALE,FEMALE"`
-	BirthDay   string `desc:"生日"`
+	NickName          string `desc:"昵称"`
+	Mobilephone       string `desc:"手机号码"`
+	Email             string `desc:"邮箱"`
+	Gender            string `desc:"性别" enum:"MALE,FEMALE，UNKNOWN"`
+	BirthDayTimeStamp int64  `desc:"生日"`
 }
 
 type SetUserInfoRequest struct {

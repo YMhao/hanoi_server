@@ -2,6 +2,7 @@ package user_api
 
 import (
 	"github.com/YMhao/EasyApi/serv"
+	"github.com/gin-gonic/gin"
 )
 
 type GetBackPasswdRequest struct {
@@ -18,5 +19,9 @@ var GetBackPasswdApi = serv.NewAPI(
 	"找回密码",
 	&GetBackPasswdRequest{},
 	&GetBackPasswdResponse{},
-	nil,
+	GetBackPasswdCallBack,
 )
+
+func GetBackPasswdCallBack(data []byte, c *gin.Context) (interface{}, *serv.APIError) {
+	return nil, nil
+}

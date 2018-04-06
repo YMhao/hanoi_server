@@ -17,7 +17,7 @@ type BindResponse struct {
 }
 
 var BindApi = serv.NewAPI(
-	"bindOrUnbind",
+	"BindOrUnbind",
 	"绑定或解绑定",
 	&BindRequest{},
 	&BindResponse{},
