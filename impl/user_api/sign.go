@@ -1,19 +1,21 @@
 package user_api
 
 import (
+	"fmt"
 	"regexp"
 
 	"gopkg.in/mgo.v2"
 
 	"github.com/YMhao/EasyApi/serv"
 	"github.com/YMhao/hanoi_server/dao"
+	"github.com/YMhao/hanoi_server/impl/common"
 	"github.com/gin-gonic/gin"
 )
 
 type SignInOrSignUpRequest struct {
 	UserName string `desc:"用户名"`
 	Passwd   string `desc:"密码，md5(passwd), 32位md5"`
-	IMIE     string `desc:"IMIE识别码,游客登录只填IMIE识别码,不需要输入用户名密码"`
+	IMIE     string `desc:"IMIE识别码,限制疯狂注册"`
 }
 
 type SignInOrSignUpResponse struct {
@@ -27,7 +29,7 @@ type SignInOrSignUpResponse struct {
 
 var SignInOrSignUpApi = serv.NewAPI(
 	"SignInOrSignUp",
-	"登录或注册用户",
+	`登录或注册用户接口`,
 	&SignInOrSignUpRequest{},
 	&SignInOrSignUpResponse{},
 	SignInOrSignUpCallBack,
@@ -157,11 +159,16 @@ func tryCreatBind(userName, content string, userNameType UserNameType) error {
 	return nil
 }
 
-func trySendBindMessage(dest string, userNameType UserNameType) {
+func trySendBindMessage(dest string, userNameType UserNameType) error {
 	switch userNameType {
 	case "EMAIL":
-		// TODO
+		err := common.SendSignUpSuccessEmail(dest)
+		if err != nil {
+			fmt.Println("send Email", err)
+		}
+		return err
 	case "MOBILEPHONE":
 		// TODO
 	}
+	return nil
 }

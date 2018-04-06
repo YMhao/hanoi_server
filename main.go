@@ -7,6 +7,7 @@ import (
 	"github.com/YMhao/EasyApi/serv"
 	"github.com/YMhao/hanoi_server/conf"
 	"github.com/YMhao/hanoi_server/dao"
+	"github.com/YMhao/hanoi_server/impl/common"
 	"github.com/YMhao/hanoi_server/impl/security_api"
 	"github.com/YMhao/hanoi_server/impl/user_api"
 )
@@ -40,6 +41,8 @@ func main() {
 
 	err = dao.Init(cfg.MongoURL, cfg.RedisURL)
 	exitIfError(err)
+
+	common.InitEmailSetting(&cfg.EmailSetting)
 
 	servCfg := serv.NewAPIServConf(VERSION, BUILD_TIME, SERVER_NAME, SERVER_DESCRIPTION)
 	servCfg.DebugOn = cfg.Debug

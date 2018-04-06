@@ -7,11 +7,32 @@ import (
 )
 
 type Configuration struct {
-	MongoURL   string
-	RedisURL   string
-	Debug      bool
-	ListenAddr string
-	HttpProxy  string
+	MongoURL     string
+	RedisURL     string
+	Debug        bool
+	ListenAddr   string
+	HttpProxy    string
+	EmailSetting EmailSetting
+}
+
+type EmailSetting struct {
+	UserName string
+	Passwd   string
+	Host     string
+	NickName string
+	Addr     string
+}
+
+func newMissError(key string) error {
+	return errors.New(key + " is missing")
+}
+
+func configString(cfg config.Configer, key string) (string, error) {
+	value := cfg.String(key)
+	if value == "" {
+		return "", errors.New(key + " is missing")
+	}
+	return value, nil
 }
 
 func NewConfig(fileName string) (*Configuration, error) {
@@ -20,19 +41,42 @@ func NewConfig(fileName string) (*Configuration, error) {
 		return nil, err
 	}
 	conf := &Configuration{}
-	conf.MongoURL = configer.String("mongodb.url")
-	if conf.MongoURL == "" {
-		return nil, errors.New("mongodb.url is missing")
+	conf.MongoURL, err = configString(configer, "mongodb.url")
+	if err != nil {
+		return nil, err
 	}
-	conf.RedisURL = configer.String("redis.url")
-	if conf.RedisURL == "" {
-		return nil, errors.New("redis.url is missing")
+
+	conf.RedisURL, err = configString(configer, "redis.url")
+	if err != nil {
+		return nil, err
 	}
 	conf.Debug = configer.DefaultBool("debug", false)
-	conf.ListenAddr = configer.String("listen.addr")
-	if conf.ListenAddr == "" {
-		return nil, errors.New("listen.addr is missing")
+
+	conf.ListenAddr, err = configString(configer, "listen.addr")
+	if err != nil {
+		return nil, err
 	}
 	conf.HttpProxy = configer.String("http.proxy")
+
+	conf.EmailSetting.UserName, err = configString(configer, "email.username")
+	if err != nil {
+		return nil, err
+	}
+	conf.EmailSetting.Passwd, err = configString(configer, "email.passwd")
+	if err != nil {
+		return nil, err
+	}
+	conf.EmailSetting.NickName, err = configString(configer, "email.nickname")
+	if err != nil {
+		return nil, err
+	}
+	conf.EmailSetting.Host, err = configString(configer, "email.host")
+	if err != nil {
+		return nil, err
+	}
+	conf.EmailSetting.Addr, err = configString(configer, "email.addr")
+	if err != nil {
+		return nil, err
+	}
 	return conf, nil
 }
