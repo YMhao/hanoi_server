@@ -1,11 +1,8 @@
 package common
 
 import (
-	"fmt"
-	"net/smtp"
-	"strings"
-
 	"github.com/YMhao/hanoi_server/conf"
+	gomail "gopkg.in/gomail.v2"
 )
 
 var EmailSetting *conf.EmailSetting = nil
@@ -15,14 +12,15 @@ func InitEmailSetting(setting *conf.EmailSetting) {
 }
 
 func SendSignUpSuccessEmail(toUser string) error {
-	auth := smtp.PlainAuth("", EmailSetting.UserName, EmailSetting.Passwd, EmailSetting.Host)
-	to := []string{toUser}
-	nickname := EmailSetting.NickName
-	user := EmailSetting.UserName
-	subject := "Sign up Success! 注册成功"
-	content_type := "Content-Type: text/plain; charset=UTF-8"
-	body := fmt.Sprintf("注册成功，祝您游戏愉快。温馨提示：帐号已绑定您的邮箱，如忘记密码，可通过该邮箱找回密码。")
-	msg := []byte("To: " + strings.Join(to, ",") + "\r\nFrom: " + nickname +
-		"<" + user + ">\r\nSubject: " + subject + "\r\n" + content_type + "\r\n\r\n" + body)
-	return smtp.SendMail(EmailSetting.Addr, auth, user, to, msg)
+	m := gomail.NewMessage()
+	m.SetAddressHeader("From", EmailSetting.UserName, EmailSetting.NickName)
+	m.SetHeader("To", m.FormatAddress(toUser, "user"))
+	m.SetHeader("Subject", "汉诺塔")
+	m.SetBody("text/html", "祝您游戏愉快！")
+
+	d := gomail.NewPlainDialer(EmailSetting.Host, EmailSetting.SMTPPort, EmailSetting.UserName, EmailSetting.Passwd)
+	if err := d.DialAndSend(m); err != nil {
+		return err
+	}
+	return nil
 }

@@ -20,7 +20,7 @@ type EmailSetting struct {
 	Passwd   string
 	Host     string
 	NickName string
-	Addr     string
+	SMTPPort int
 }
 
 func newMissError(key string) error {
@@ -74,7 +74,7 @@ func NewConfig(fileName string) (*Configuration, error) {
 	if err != nil {
 		return nil, err
 	}
-	conf.EmailSetting.Addr, err = configString(configer, "email.addr")
+	conf.EmailSetting.SMTPPort, err = configer.Int("email.smtp.port")
 	if err != nil {
 		return nil, err
 	}
