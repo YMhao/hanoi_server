@@ -189,6 +189,13 @@ func (d *_UserPasswdDao) Create(userUUID, passwd string) error {
 	})
 }
 
+func (d *_UserPasswdDao) Get(userUUID string) (*UserPasswd, error) {
+	c := d.coll.With(d.sess)
+	obj := &UserPasswd{}
+	err := c.FindId(userUUID).One(obj)
+	return obj, err
+}
+
 func (d *_UserPasswdDao) Update(userUUID, passwd string) error {
 	c := d.coll.With(d.sess)
 	obj, err := d.Get(userUUID)
@@ -212,80 +219,49 @@ func (d *_UserPasswdDao) CheckPasswOlny(userUUID, passwd string) (bool, error) {
 	return newPasswd == obj.Passwd, nil
 }
 
-func (d *_UserPasswdDao) Check(userUUID, passwd string) (bool, int64, int, error) {
+func (d *_UserPasswdDao) DecreaseTryCount(userUUID string) error {
+	c := d.coll.With(d.sess)
+	return c.Update(bson.M{"_id": userUUID}, bson.M{
+		"$inc": bson.M{
+			"try_count": -1,
+		},
+	})
+}
+
+func (d *_UserPasswdDao) GetLockTimeAndTryCount(userUUID string) (int64, int, error) {
 	obj, err := d.Get(userUUID)
-	if err != nil {
-		return false, 0, 0, err
-	}
-
-	if obj.TryCount <= 0 {
-		t := time.Now().UnixNano() / 1e6
-		if t < obj.LockTime {
-			return false, obj.LockTime, 0, nil
-		}
-		err = d.Recover(obj)
-		if err != nil {
-			return false, 0, 0, err
-		}
-	}
-
-	newPasswd := getPasswd(passwd, obj.Salt)
-
-	if newPasswd != obj.Passwd {
-		d.Inc(obj)
-		newObj, err := d.Get(obj.UserUUID)
-		if err != nil {
-			return false, 0, 0, err
-		}
-		return false, newObj.LockTime, newObj.TryCount, nil
-	}
-
-	d.Recover(obj)
-	return true, 0, d.TryCountMax(), nil
+	return obj.LockTime, obj.TryCount, err
 }
 
-func (d *_UserPasswdDao) Get(userUUID string) (*UserPasswd, error) {
-	c := d.coll.With(d.sess)
-	obj := &UserPasswd{}
-	err := c.FindId(userUUID).One(obj)
-	return obj, err
+func (d *_UserPasswdDao) LockDuration() int64 {
+	return 1000 * 60 * 60
 }
 
-func (d *_UserPasswdDao) Recover(obj *UserPasswd) error {
+func (d *_UserPasswdDao) LockTime() int64 {
+	t := time.Now().UnixNano() / 1e6
+	return t + d.LockDuration()
+}
+
+func (d *_UserPasswdDao) SetLockTime(userUUID string) (int64, error) {
 	c := d.coll.With(d.sess)
-	err := c.Update(bson.M{"_id": obj.UserUUID}, bson.M{
+	lockTime := d.LockTime()
+	return lockTime, c.Update(bson.M{"_id": userUUID}, bson.M{
+		"$set": bson.M{
+			"lock_time": lockTime,
+		},
+	})
+}
+
+func (d *_UserPasswdDao) Recover(userUUID string) error {
+	c := d.coll.With(d.sess)
+	err := c.Update(bson.M{"_id": userUUID}, bson.M{
 		"$set": bson.M{
 			"lock_time": 0,
-			"try_count": 5,
+			"try_count": d.TryCountMax(),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	obj.LockTime = 0
-	obj.TryCount = 10
 	return nil
-}
-
-func (d *_UserPasswdDao) Inc(obj *UserPasswd) {
-	c := d.coll.With(d.sess)
-	if obj.TryCount <= 1 {
-		err := c.Update(bson.M{"_id": obj.UserUUID}, bson.M{
-			"$inc": bson.M{
-				"try_count": -1,
-			},
-		})
-		if err != nil {
-			return
-		}
-		c.Update(bson.M{
-			"_id":       obj.UserUUID,
-			"lock_time": 0,
-		}, bson.M{
-			"$set": bson.M{
-				"lock_time": time.Now().UnixNano()/1e6 + 1000*60*60*2,
-			},
-		})
-	}
-	return
 }

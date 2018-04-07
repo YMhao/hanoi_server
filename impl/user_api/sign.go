@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	"gopkg.in/mgo.v2"
 
@@ -23,7 +24,6 @@ type SignInOrSignUpResponse struct {
 	HasLock     bool         `desc:"帐号是否被锁定"`
 	LockTime    int64        `desc:"锁定到什么时候, 时间戳，单位是秒"`
 	TryCount    int          `desc:"剩余重试次数"`
-	PasswdError bool         `desc:"密码是否错误"`
 	SessionID   string       `desc:"会话id"`
 	SendEmail   bool         `desc:"是否发送邮件成功"`
 	SendMessage bool         `desc:"是否发送短信成功"`
@@ -49,7 +49,7 @@ func SignInOrSignUpCallBack(data []byte, c *gin.Context) (interface{}, *serv.API
 	userNameType := getUserNameType(req.UserName)
 	if userNameType == USER_NAME_TYPE_UNKNOWN {
 		return nil, &serv.APIError{
-			Code:    "format.invalid",
+			Code:    "wrong.format.username",
 			Message: "用户名格式错误",
 		}
 	}
@@ -57,7 +57,7 @@ func SignInOrSignUpCallBack(data []byte, c *gin.Context) (interface{}, *serv.API
 	ok := checkPasswdFormat(req.Passwd)
 	if !ok {
 		return nil, &serv.APIError{
-			Code:    "format.invalid",
+			Code:    "wrong.format.passwd",
 			Message: "密码格式错误",
 		}
 	}
@@ -73,21 +73,58 @@ func SignInOrSignUpCallBack(data []byte, c *gin.Context) (interface{}, *serv.API
 }
 
 func signIn(userUUID, passwd string, userNameType UserNameType) (interface{}, *serv.APIError) {
-	ok, lockTime, tryCount, err := dao.UserPasswdDao.Check(userUUID, passwd)
+	lockTime, tryCount, err := dao.UserPasswdDao.GetLockTimeAndTryCount(userUUID)
 	if err != nil {
 		return nil, serv.NewError(err)
 	}
+	if tryCount <= 0 {
+		now := time.Now().UnixNano() / 1e6
+		if lockTime > now {
+			return &SignInOrSignUpResponse{
+					HasLock:  true,
+					LockTime: lockTime / 1000,
+					TryCount: 0,
+					UserType: userNameType,
+				}, &serv.APIError{
+					Code:    "user.lock",
+					Message: "密码尝试次数过多，帐号被锁定",
+				}
+		} else {
+			err = dao.UserPasswdDao.Recover(userUUID)
+			if err != nil {
+				return nil, serv.NewError(err)
+			}
+		}
+	}
+
+	ok, err := dao.UserPasswdDao.CheckPasswOlny(userUUID, passwd)
 	if !ok {
+		err = dao.UserPasswdDao.DecreaseTryCount(userUUID)
+		if err != nil {
+			return nil, serv.NewError(err)
+		}
+		lockTime, tryCount, err := dao.UserPasswdDao.GetLockTimeAndTryCount(userUUID)
+		if err != nil {
+			return nil, serv.NewError(err)
+		}
+		if tryCount <= 0 {
+			lockTime, err = dao.UserPasswdDao.SetLockTime(userUUID)
+			tryCount = 0
+		}
 		return &SignInOrSignUpResponse{
-				HasLock:     (lockTime > 0),
-				LockTime:    lockTime,
-				TryCount:    tryCount,
-				SessionID:   "",
-				PasswdError: true,
+				HasLock:  true,
+				LockTime: lockTime / 1000,
+				TryCount: tryCount,
+				UserType: userNameType,
 			}, &serv.APIError{
 				Code:    "wrong.passwd",
 				Message: "密码错误",
 			}
+	}
+
+	err = dao.UserPasswdDao.Recover(userUUID)
+	if err != nil {
+		return nil, serv.NewError(err)
 	}
 
 	sessionID, err := dao.SessionDao.NewSession(userUUID)
@@ -96,7 +133,7 @@ func signIn(userUUID, passwd string, userNameType UserNameType) (interface{}, *s
 	}
 	return &SignInOrSignUpResponse{
 		SessionID: sessionID,
-		TryCount:  tryCount,
+		TryCount:  dao.UserPasswdDao.TryCountMax(),
 		UserType:  userNameType,
 	}, nil
 }

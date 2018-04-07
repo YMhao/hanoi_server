@@ -15,8 +15,16 @@ import (
 var (
 	VERSION            = "v1"
 	SERVER_NAME        = "hannoiAPIs"
-	SERVER_DESCRIPTION = "service for a mini game - hannoi"
-	BUILD_TIME         = ""
+	SERVER_DESCRIPTION = `
+service for a mini game - hannoi
+
+错误对照表:
+user.lock: 帐号被锁定
+wrong.passwd: 密码错误
+wrong.format.username: 用户名格式错误
+wrong.format.passwd: 密码格式错误 
+`
+	BUILD_TIME = ""
 )
 
 func help() {

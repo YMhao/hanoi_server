@@ -35,7 +35,7 @@ func ModifyPasswdCallBack(data []byte, c *gin.Context) (interface{}, *serv.APIEr
 
 	if !checkPasswdFormat(req.OldPasswd) || !checkPasswdFormat(req.NewPasswd) {
 		return nil, &serv.APIError{
-			Code:    "format.invalid",
+			Code:    "wrong.format.passwd",
 			Message: "密码格式错误",
 		}
 	}
