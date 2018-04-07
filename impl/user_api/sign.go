@@ -97,6 +97,7 @@ func signIn(userUUID, passwd string, userNameType UserNameType) (interface{}, *s
 	return &SignInOrSignUpResponse{
 		SessionID: sessionID,
 		TryCount:  tryCount,
+		UserType:  userNameType,
 	}, nil
 }
 
