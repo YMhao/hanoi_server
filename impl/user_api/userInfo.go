@@ -26,7 +26,7 @@ var SetUserInfoApi = serv.NewAPI(
 	"设置用户信息",
 	&SetUserInfoRequest{},
 	&SetUserInfoRespone{},
-	nil,
+	SetUserInfoBack,
 )
 
 func SetUserInfoBack(data []byte, c *gin.Context) (interface{}, *serv.APIError) {
