@@ -79,12 +79,15 @@ func signIn(userUUID, passwd string, userNameType UserNameType) (interface{}, *s
 	}
 	if !ok {
 		return &SignInOrSignUpResponse{
-			HasLock:     (lockTime > 0),
-			LockTime:    lockTime,
-			TryCount:    tryCount,
-			SessionID:   "",
-			PasswdError: true,
-		}, nil
+				HasLock:     (lockTime > 0),
+				LockTime:    lockTime,
+				TryCount:    tryCount,
+				SessionID:   "",
+				PasswdError: true,
+			}, &serv.APIError{
+				Code:    "wrong.passwd",
+				Message: "密码错误",
+			}
 	}
 
 	sessionID, err := dao.SessionDao.NewSession(userUUID)
