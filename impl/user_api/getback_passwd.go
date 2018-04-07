@@ -1,6 +1,8 @@
 package user_api
 
 import (
+	"errors"
+
 	"github.com/YMhao/EasyApi/serv"
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +13,8 @@ type GetBackPasswdRequest struct {
 }
 
 type GetBackPasswdResponse struct {
-	Message string `desc:"一些提示相关的信息"`
+	Type       string `desc:"找回密码的方式" enum:"EMAIL"`
+	SendStatus bool   `desc:"是否已发送"`
 }
 
 var GetBackPasswdApi = serv.NewAPI(
@@ -23,5 +26,6 @@ var GetBackPasswdApi = serv.NewAPI(
 )
 
 func GetBackPasswdCallBack(data []byte, c *gin.Context) (interface{}, *serv.APIError) {
-	return nil, nil
+	err := errors.New("暂不支持")
+	return nil, serv.NewError(err)
 }

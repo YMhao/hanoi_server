@@ -173,7 +173,9 @@ func newUserPasswdDao(sess *mgo.Session) *_UserPasswdDao {
 	}
 }
 
-const tryCount = 10
+func (d *_UserPasswdDao) TryCountMax() int {
+	return 8
+}
 
 func (d *_UserPasswdDao) Create(userUUID, passwd string) error {
 	c := d.coll.With(d.sess)
@@ -183,8 +185,31 @@ func (d *_UserPasswdDao) Create(userUUID, passwd string) error {
 		Passwd:   newPasswd,
 		Salt:     salt,
 		LockTime: 0,
-		TryCount: tryCount,
+		TryCount: d.TryCountMax(),
 	})
+}
+
+func (d *_UserPasswdDao) Update(userUUID, passwd string) error {
+	c := d.coll.With(d.sess)
+	obj, err := d.Get(userUUID)
+	if err != nil {
+		return err
+	}
+	salt, newPasswd := newPasswd(passwd)
+	obj.Passwd = newPasswd
+	obj.Salt = salt
+	obj.LockTime = 0
+	obj.TryCount = d.TryCountMax()
+	return c.UpdateId(userUUID, obj)
+}
+
+func (d *_UserPasswdDao) CheckPasswOlny(userUUID, passwd string) (bool, error) {
+	obj, err := d.Get(userUUID)
+	if err != nil {
+		return false, err
+	}
+	newPasswd := getPasswd(passwd, obj.Salt)
+	return newPasswd == obj.Passwd, nil
 }
 
 func (d *_UserPasswdDao) Check(userUUID, passwd string) (bool, int64, int, error) {
@@ -216,7 +241,7 @@ func (d *_UserPasswdDao) Check(userUUID, passwd string) (bool, int64, int, error
 	}
 
 	d.Recover(obj)
-	return true, 0, tryCount, nil
+	return true, 0, d.TryCountMax(), nil
 }
 
 func (d *_UserPasswdDao) Get(userUUID string) (*UserPasswd, error) {

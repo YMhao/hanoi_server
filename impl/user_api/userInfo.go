@@ -2,6 +2,8 @@ package user_api
 
 import (
 	"github.com/YMhao/EasyApi/serv"
+	"github.com/YMhao/hanoi_server/dao"
+	"github.com/gin-gonic/gin"
 )
 
 type UserInfo struct {
@@ -26,3 +28,24 @@ var SetUserInfoApi = serv.NewAPI(
 	&SetUserInfoRespone{},
 	nil,
 )
+
+func SetUserInfoBack(data []byte, c *gin.Context) (interface{}, *serv.APIError) {
+	req := &SetUserInfoRequest{}
+	err := serv.UnmarshalAndCheckValue(data, req)
+	if err != nil {
+		return nil, serv.NewError(err)
+	}
+	userUUID, err := dao.SessionDao.GetUserUUID(req.SessionID)
+	if err != nil {
+		return nil, serv.NewError(err)
+	}
+	dao.UserProfileDao.Set(&dao.UserProfile{
+		UserUUID: userUUID,
+		NickName: req.UserInfo.NickName,
+		Gender:   req.UserInfo.Gender,
+		//BirthDayTimeStamp : req.UserInfo.BirthDay,
+		MobilePhone: req.UserInfo.Mobilephone,
+		Email:       req.UserInfo.Email,
+	})
+	return &SetUserInfoRespone{}, nil
+}

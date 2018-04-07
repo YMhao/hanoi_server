@@ -30,3 +30,7 @@ func (d _SessionDao) NewSession(userUUID string) (string, error) {
 	}
 	return sessionId, nil
 }
+
+func (d _SessionDao) GetUserUUID(sessionId string) (string, error) {
+	return d.client.Cmd("GET", "sessionId").Str()
+}

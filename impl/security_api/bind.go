@@ -1,7 +1,10 @@
 package security_api
 
 import (
+	"errors"
+
 	"github.com/YMhao/EasyApi/serv"
+	"github.com/gin-gonic/gin"
 )
 
 type BindRequest struct {
@@ -21,5 +24,10 @@ var BindApi = serv.NewAPI(
 	"绑定或解绑定",
 	&BindRequest{},
 	&BindResponse{},
-	nil,
+	BindCallBack,
 )
+
+func BindCallBack(data []byte, c *gin.Context) (interface{}, *serv.APIError) {
+	err := errors.New("暂不支持")
+	return nil, serv.NewError(err)
+}

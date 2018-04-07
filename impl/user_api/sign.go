@@ -1,6 +1,7 @@
 package user_api
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -19,12 +20,15 @@ type SignInOrSignUpRequest struct {
 }
 
 type SignInOrSignUpResponse struct {
-	HasLock     bool   `desc:"帐号是否被锁定"`
-	LockTime    int64  `desc:"锁定到什么时候, 时间戳，单位是秒"`
-	TryCount    int    `desc:"剩余重试次数"`
-	PasswdError bool   `desc:"密码是否错误"`
-	SessionID   string `desc:"会话id"`
-	Message     string `desc:"提示信息，例如“注册成功，已向邮箱发送绑定帐号信息邮件，点击邮箱中的链接即可完成绑定”"`
+	HasLock     bool         `desc:"帐号是否被锁定"`
+	LockTime    int64        `desc:"锁定到什么时候, 时间戳，单位是秒"`
+	TryCount    int          `desc:"剩余重试次数"`
+	PasswdError bool         `desc:"密码是否错误"`
+	SessionID   string       `desc:"会话id"`
+	SendEmail   bool         `desc:"是否发送邮件成功"`
+	SendMessage bool         `desc:"是否发送短信成功"`
+	NewUser     bool         `desc:"是否是新用户"`
+	UserType    UserNameType `desc:"用户类型：邮箱、移动电话、未知" enum:"EMAIL、MOBILE_PHTONE、UNKNOWN"`
 }
 
 var SignInOrSignUpApi = serv.NewAPI(
@@ -63,33 +67,13 @@ func SignInOrSignUpCallBack(data []byte, c *gin.Context) (interface{}, *serv.API
 		if err != mgo.ErrNotFound {
 			return nil, serv.NewError(err)
 		}
-		userUUID, err := dao.UserDao.Create(req.UserName)
-		if err != nil {
-			return nil, serv.NewError(err)
-		}
-
-		err = dao.UserPasswdDao.Create(userUUID, req.Passwd)
-		if err != nil {
-			return nil, serv.NewError(err)
-		}
-
-		respone := &SignInOrSignUpResponse{}
-		err = tryCreatBind(req.UserName, req.UserName, userNameType)
-		if err != nil {
-			respone.Message = "未绑定"
-		}
-		trySendBindMessage(req.UserName, userNameType)
-
-		sessionID, err := dao.SessionDao.NewSession(userUUID)
-		if err != nil {
-			return nil, serv.NewError(err)
-		}
-		return &SignInOrSignUpResponse{
-			SessionID: sessionID,
-		}, nil
+		return signUp(req.UserName, req.Passwd, userNameType)
 	}
+	return signIn(userUUID, req.Passwd, userNameType)
+}
 
-	ok, lockTime, tryCount, err := dao.UserPasswdDao.Check(userUUID, req.Passwd)
+func signIn(userUUID, passwd string, userNameType UserNameType) (interface{}, *serv.APIError) {
+	ok, lockTime, tryCount, err := dao.UserPasswdDao.Check(userUUID, passwd)
 	if err != nil {
 		return nil, serv.NewError(err)
 	}
@@ -109,6 +93,7 @@ func SignInOrSignUpCallBack(data []byte, c *gin.Context) (interface{}, *serv.API
 	}
 	return &SignInOrSignUpResponse{
 		SessionID: sessionID,
+		TryCount:  tryCount,
 	}, nil
 }
 
@@ -133,6 +118,45 @@ func checkPasswdFormat(passwd string) bool {
 	reg := "^[0-9a-zA-Z]{32}$"
 	rgx := regexp.MustCompile(reg)
 	return rgx.MatchString(passwd)
+}
+
+func signUp(userName string, passwd string, userNameType UserNameType) (interface{}, *serv.APIError) {
+	userUUID, err := dao.UserDao.Create(userName)
+	if err != nil {
+		return nil, serv.NewError(err)
+	}
+
+	err = dao.UserPasswdDao.Create(userUUID, passwd)
+	if err != nil {
+		return nil, serv.NewError(err)
+	}
+
+	respone := &SignInOrSignUpResponse{
+		TryCount: dao.UserPasswdDao.TryCountMax(),
+		NewUser:  true,
+		UserType: userNameType,
+	}
+	// tryCreatBind(userName, userName, userNameType)
+	err = trySendBindMessage(userName, userNameType)
+	setSendStatus(respone, userNameType, err)
+	sessionID, err := dao.SessionDao.NewSession(userUUID)
+	if err != nil {
+		return nil, serv.NewError(err)
+	}
+	respone.SessionID = sessionID
+	return respone, nil
+}
+
+func setSendStatus(response *SignInOrSignUpResponse, userNameType UserNameType, err error) {
+	if err != nil {
+		return
+	}
+	switch userNameType {
+	case USER_NAME_TYPE_EMAIL:
+		response.SendEmail = true
+	case USER_NAME_TYPE_MOBILE_PHONE:
+		// TODO in future
+	}
 }
 
 func tryCreatBind(userName, content string, userNameType UserNameType) error {
@@ -168,7 +192,8 @@ func trySendBindMessage(dest string, userNameType UserNameType) error {
 		}
 		return err
 	case "MOBILEPHONE":
-		// TODO
+		// TODO in future
+		return errors.New("SMS are not currently supported")
 	}
 	return nil
 }
